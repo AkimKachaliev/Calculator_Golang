@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arithmetic Expression Calculator</title>
+    <style>
+        /* Добавьте CSS стили по вашему усмотрению для улучшения внешнего вида */
+        /* Например, стили для центрирования элементов, оформления кнопок и полей ввода */
+    </style>
+</head>
+<body>
+<h1>Arithmetic Expression Calculator</h1>
+<form id="calcForm">
+    <label for="expression">Enter Arithmetic Expression:</label>
+    <input type="text" id="expression" name="expression" required>
+    <button type="submit">Calculate</button>
+</form>
+<div id="status"></div>
+<div id="result"></div>
+
+<script>
+    const form = document.getElementById('calcForm');
+    const statusDiv = document.getElementById('status');
+    const resultDiv = document.getElementById('result');
+
+    form.addEventListener('submit', async function(event) {
+        event.preventDefault();
+        const expression = form.elements['expression'].value;
+
+        // Отправляем выражение на сервер для вычисления
+        const response = await fetch('/calculate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: new URLSearchParams({
+                expression: expression
+            })
+        });
+
+        if (!response.ok) {
+            statusDiv.textContent = 'Error: Failed to calculate';
+            return;
+        }
+
+        const responseData = await response.json();
+        const taskId = responseData.task_id;
+        statusDiv.textContent = `Task ${taskId} submitted. Waiting for result...`;
+
+        // Проверяем статус задачи периодически
+        const checkStatusInterval = setInterval(async function() {
+            const statusResponse = await fetch(`/status?task_id=${taskId}`);
+            if (!statusResponse.ok) {
+                clearInterval(checkStatusInterval);
+                statusDiv.textContent = 'Error: Failed to get status';
+                return;
+            }
+
+            const statusData = await statusResponse.json();
+            const status = statusData.status;
+            if (status === 'completed') {
+                clearInterval(checkStatusInterval);
+                const result = statusData.result;
+                resultDiv.textContent = `Result: ${result}`;
+            } else {
+                statusDiv.textContent = `Task ${taskId} status: ${status}`;
+            }
+        }, 3000); // Проверяем статус каждые 3 секунды
+    });
+</script>
+</body>
+</html>
